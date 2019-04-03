@@ -1,1 +1,0 @@
-# java_automation_training
