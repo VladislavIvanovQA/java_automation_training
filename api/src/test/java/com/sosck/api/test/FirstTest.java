@@ -3,29 +3,27 @@ package com.sosck.api.test;
 import com.sosck.api.request.register.RegisterUser;
 import com.sosck.api.response.customers.Customer;
 import com.sosck.api.response.customers.CustomerItem;
+import com.sosck.api.service.UsersApiService;
 import com.sosck.api.utils.RandomString;
 import io.restassured.RestAssured;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
-import io.restassured.http.Cookie;
-import io.restassured.http.Cookies;
 import io.restassured.parsing.Parser;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
-import io.restassured.response.ValidatableResponse;
-import io.restassured.specification.RequestSpecification;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
-import java.util.Objects;
 
+import static com.sosck.api.conditions.Conditions.bodyField;
+import static com.sosck.api.conditions.Conditions.statusCode;
+import static io.restassured.RestAssured.filters;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class FirstTest {
+    private final UsersApiService usersApiService = new UsersApiService();
+
     @BeforeAll
     public static void setup(){
         RestAssured.baseURI = "http://localhost:80";
@@ -34,32 +32,38 @@ public class FirstTest {
 
     @Test
     public void register(){
-        registerUser(getUser())
-                .statusCode(200)
-                .body("id", not(isEmptyOrNullString()))
-                .extract().jsonPath().get("id");
+//        given().body(getUser())
+//                .when()
+//                .post("/register")
+//                .then()
+//                .statusCode(200);
+        usersApiService.postRegisterUser(getUser())
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField("id", not(isEmptyOrNullString())));
     }
 
     @Test
     public void registerNotValid(){
         RegisterUser user = getUser();
-        registerUser(user)
-                .statusCode(200)
-                .body("id", not(isEmptyOrNullString()))
-                .extract().jsonPath().get("id");
 
-        registerUser(user)
-                .statusCode(500);
+        usersApiService.postRegisterUser(user)
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField("id", not(isEmptyOrNullString())));
+
+        usersApiService.postRegisterUser(user)
+                .shouldHave(statusCode(500));
     }
 
     @Test
     public void registerAndViewUser(){
-        String id = registerUser(getUser())
-                .statusCode(200)
-                .body("id", not(isEmptyOrNullString()))
-                .extract().jsonPath().get("id");
+        String id = usersApiService.postRegisterUser(getUser())
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField("id", not(isEmptyOrNullString())))
+                .getJsonPathValue("id");
 
-        Customer customers = getCustomers();
+        Customer customers = usersApiService.getCustomers()
+                .shouldHave(statusCode(200))
+                .asPOJO(Customer.class);
 
         assert customers.get_embedded().getCustomer().stream()
                 .filter(customerItem -> customerItem.getId().equals(id))
@@ -69,24 +73,28 @@ public class FirstTest {
 
     @Test
     public void registerCheckDeleteUser(){
-        String id = registerUser(getUser())
-                .statusCode(200)
-                .body("id", not(isEmptyOrNullString()))
-                .extract().jsonPath().get("id");
+        String id = usersApiService.postRegisterUser(getUser())
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField("id", not(isEmptyOrNullString())))
+                .getJsonPathValue("id");
 
-        Customer customers = getCustomers();
+        Customer customers = usersApiService.getCustomers()
+                .shouldHave(statusCode(200))
+                .asPOJO(Customer.class);
 
         assert customers.get_embedded().getCustomer().stream()
                 .filter(customerItem -> customerItem.getId().equals(id))
                 .findFirst()
                 .orElse(null) != null;
 
-        base().delete("/customers/" + id)
-                .then()
-                .statusCode(200)
-                .body(containsString("\"{\\\"status\\\":true}\\n\""));
+        usersApiService.deleteCustomersWithId(id)
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField(containsString("\"{\\\"status\\\":true}\\n\"")));
 
-        Customer customer = getCustomers();
+
+        Customer customer = usersApiService.getCustomers()
+                .shouldHave(statusCode(200))
+                .asPOJO(Customer.class);
 
         assert customer.get_embedded().getCustomer().stream()
                 .filter(customerItem -> customerItem.getId().equals(id))
@@ -96,26 +104,26 @@ public class FirstTest {
 
     @Test
     public void registerCheckUserGetCustomerWithId(){
-        ExtractableResponse<Response> response = registerUser(getUser())
-                .statusCode(200)
-                .body("id", not(isEmptyOrNullString()))
-                .extract();
+        ExtractableResponse<Response> response = usersApiService.postRegisterUser(getUser())
+                .shouldHave(statusCode(200))
+                .shouldHave(bodyField("id", not(isEmptyOrNullString())))
+                .execute();
 
-        String id = response.jsonPath().get("id");
-        Map<String, String> cookies = response.cookies();
+        String id = response.jsonPath().getString("id");
 
-
-        Customer customers = getCustomers();
+        Customer customers = usersApiService.getCustomers()
+                .shouldHave(statusCode(200))
+                .asPOJO(Customer.class);
 
         assert customers.get_embedded().getCustomer().stream()
                 .filter(customerItem -> customerItem.getId().equals(id))
                 .findFirst()
                 .orElse(null) != null;
 
-        CustomerItem item = base().cookies(cookies).get(String.format("/customers/%s", id))
-                .then()
-                .statusCode(200)
-                .extract().as(CustomerItem.class);
+        CustomerItem item = usersApiService.getCustomersWithId(id, response.cookies())
+                .shouldHave(statusCode(200))
+                .asPOJO(CustomerItem.class);
+
         CustomerItem customerItem1 = customers.get_embedded().getCustomer().stream()
                 .filter(customerItem -> customerItem.getId().equals(id))
                 .findFirst()
@@ -125,13 +133,6 @@ public class FirstTest {
         assert customerItem1.equals(item);
     }
 
-    private Customer getCustomers() {
-        return base().get("/customers")
-                .then()
-                .statusCode(200)
-                .extract().as(Customer.class);
-    }
-
     private RegisterUser getUser() {
         String login = new RandomString(21).nextString();
         String email = new RandomString(21).nextString() + "@mail.ru";
@@ -139,18 +140,5 @@ public class FirstTest {
                 .username(login)
                 .password("1234567890")
                 .email(email);
-    }
-
-    private ValidatableResponse registerUser(RegisterUser user){
-        return base().body(user)
-            .post("/register")
-            .then();
-    }
-
-    private RequestSpecification base(){
-        return given()
-            .contentType(ContentType.JSON)
-            .accept(ContentType.JSON);
-//            .filters(new ResponseLoggingFilter(), new ResponseLoggingFilter());
     }
 }
