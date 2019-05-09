@@ -14,4 +14,11 @@ public class BodyHtmlCondition implements Condition{
         response.then()
                 .body(htmlPath);
     }
+
+    @Override
+    public String toString() {
+        return "BodyHtmlCondition{" +
+                "htmlPath=" + htmlPath +
+                '}';
+    }
 }
