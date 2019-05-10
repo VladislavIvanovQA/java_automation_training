@@ -14,4 +14,12 @@ public class BodyJsonCondition implements Condition {
         response.then()
                 .body(jsonPath, matcher);
     }
+
+    @Override
+    public String toString() {
+        return "BodyJsonCondition{" +
+                "jsonPath='" + jsonPath + '\'' +
+                ", matcher=" + matcher +
+                '}';
+    }
 }

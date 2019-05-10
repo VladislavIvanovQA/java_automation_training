@@ -1,6 +1,7 @@
 package com.sosck.api.assertions;
 
 import com.sosck.api.conditions.Condition;
+import io.qameta.allure.Step;
 import io.restassured.response.ExtractableResponse;
 import io.restassured.response.Response;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 public class AssertableResponse {
     private final Response response;
 
+    @Step
     public AssertableResponse shouldHave(Condition conditions){
         conditions.check(response);
         return this;

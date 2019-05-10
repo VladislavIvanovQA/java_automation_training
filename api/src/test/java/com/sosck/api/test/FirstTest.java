@@ -21,22 +21,11 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class FirstTest {
+public class FirstTest extends BaseTest{
     private final UsersApiService usersApiService = new UsersApiService();
-
-    @BeforeAll
-    public static void setup(){
-        RestAssured.baseURI = "http://localhost:80";
-        RestAssured.defaultParser = Parser.JSON;
-    }
 
     @Test
     public void register(){
-//        given().body(getUser())
-//                .when()
-//                .post("/register")
-//                .then()
-//                .statusCode(200);
         usersApiService.postRegisterUser(getUser())
                 .shouldHave(statusCode(200))
                 .shouldHave(bodyField("id", not(isEmptyOrNullString())));

@@ -1,5 +1,6 @@
 package com.sosck.api.service;
 
+import io.qameta.allure.restassured.AllureRestAssured;
 import io.restassured.filter.log.ResponseLoggingFilter;
 import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
@@ -12,6 +13,8 @@ public class ApiService {
         return given()
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
-            .filters(new ResponseLoggingFilter(), new ResponseLoggingFilter());
+            .filters(new ResponseLoggingFilter(),
+                     new ResponseLoggingFilter(),
+                    new AllureRestAssured());
     }
 }
